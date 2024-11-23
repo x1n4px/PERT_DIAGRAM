@@ -1,6 +1,9 @@
 import pandas as pd
 from graphviz import Digraph
 
+archivo_excel = "input/input.xlsx"  # Cambia esto por la ruta de tu archivo Excel
+
+
 def leer_y_procesar_excel(archivo_excel):
     """
     Lee un archivo Excel, filtra las variables con valores completos y calcula De y Var para cada variable.
@@ -49,7 +52,6 @@ def exportar_a_latex(datos, archivo_latex):
         f.write(tabla_latex)
 
 # Uso del programa
-archivo_excel = "input/input2.xlsx"  # Cambia esto por la ruta de tu archivo Excel
 archivo_latex = "output/tabla.tex"  # Ruta del archivo de salida en LaTeX
 
 # Leer, procesar y exportar
@@ -194,9 +196,6 @@ def generar_grafo_pert(relaciones, variables, archivo_salida='graph'):
     dot.render(archivo_salida, format='png', cleanup=True)
     #print(f"Grafo generado y guardado como {archivo_salida}.png")
 
-# Uso del programa
-archivo_excel = "input/input2.xlsx"  # Cambia esto por la ruta de tu archivo Excel
-
 # Leer las relaciones de precedencia
 relaciones_precedencia, variables = leer_matriz_dependencias(archivo_excel)
 # Crear un conjunto con todos los elementos únicos de las tuplas en lista_B
@@ -208,6 +207,25 @@ resultado = [elemento for elemento in variables if elemento in elementos_en_B]
 # Generar el grafo PERT
 generar_grafo_pert(relaciones_precedencia, resultado, archivo_salida='output/pert_grafo')
 
+
+# Paso 1: Encontrar vértices iniciales
+destinos = {b for _, b in relaciones_precedencia}
+origenes = {a for a, _ in relaciones_precedencia}
+iniciales = origenes - destinos  # Vértices que no son precedidos por nadie
+
+# Paso 2: Crear un mapeo de identificadores de nodos
+todos_los_nodos = origenes | destinos
+nodo_ids = {nodo: i + 2 for i, nodo in enumerate(todos_los_nodos)}
+nodo_ids['1'] = 1  # Nodo inicial
+
+# Paso 3: Crear las relaciones
+relaciones = {1: [(nodo, nodo_ids[nodo]) for nodo in iniciales]}  # Nodo inicial
+for origen, destino in relaciones_precedencia:
+    nodo_origen = nodo_ids[origen]
+    nodo_destino = nodo_ids[destino]
+    if nodo_origen not in relaciones:
+        relaciones[nodo_origen] = []
+    relaciones[nodo_origen].append((origen, nodo_destino))
 
 
 
@@ -309,32 +327,37 @@ def generar_tabla_tareas(nodos, relaciones, duraciones, Ei, Li):
 
 
 # Nodos en orden progresivo de cálculo
-nodos = [1, 2, 3, 4]
+# Extraer los números de los nodos
+nodos = set(relaciones.keys())  # Claves del diccionario
+for conexiones in relaciones.values():
+    for _, destino in conexiones:
+        nodos.add(destino)  # Agregar los nodos destino
 
-# Relaciones entre nodos (origen -> (actividad, destino))
-relaciones = {
-    1: [('A', 2), ('C', 3)],  # Nodo 1 se conecta con 2 (A) y 3 (C)
-    2: [('F1', 3), ('B', 4)], # Nodo 2 se conecta con 3 (F1) y 4 (B)
-    3: [('D', 4)]             # Nodo 3 se conecta con 4 (D)
-}
+# Convertir a lista y ordenar
+nodos = sorted(nodos)
+
+
+
 
 # Duraciones de las actividades (t0, tm, tp calculado previamente como De)
 # Crear el diccionario 'duraciones' con las claves de la columna 'Variable' y los valores de la columna 'De'
 duraciones = {}
 
 # Recorrer las filas del DataFrame y agregar los valores correspondientes al diccionario
-for i in range(len(datos_procesados)):
-    variable = datos_procesados['Variable'].iloc[i]
-    de_value = round(datos_procesados['De'].iloc[i], 2)
-    duraciones[variable] = de_value
+# Crear el diccionario con redondeo
+duraciones = {
+    row['Variable']: round(row['De'], 2)
+    for _, row in datos_procesados.iterrows()
+}
+
 
 # Agregar 'F1': 0 al diccionario
 duraciones['F1'] = 0
 
 # Imprimir el diccionario
-#print("DURACIONES")
-#print(duraciones)
-
+print(nodos)
+print(duraciones)
+print(relaciones)
 
 # Calcular Early Times (Ei)
 Ei, tabla_early = calcular_early_times(nodos, relaciones, duraciones)
@@ -348,12 +371,11 @@ tabla_completa = pd.merge(tabla_early, tabla_late, on='Ti')
 # Generar la tabla de tareas
 tabla_tareas = generar_tabla_tareas(nodos, relaciones, duraciones, Ei, Li)
 
-# Mostrar las tablas generadas
-##print("Tabla Completa (Ei y Li):")
-##print(tabla_completa.to_latex(index=False, float_format="%.3f"))
+print("Tabla Completa (Ei y Li):")
+print(tabla_completa.to_latex(index=False, float_format="%.3f"))
 
-##print("\nTabla de Tareas:")
-##print(tabla_tareas.to_latex(index=False, float_format="%.3f"))
+print("\nTabla de Tareas:")
+print(tabla_tareas.to_latex(index=False, float_format="%.3f"))
 
 # Filtrar las tareas críticas
 tareas_criticas = tabla_tareas[tabla_tareas['Critico'] == 'Sí']
@@ -364,14 +386,6 @@ camino_critico = tareas_criticas[['Tarea', 'Ruta(i->j)', 'Di']]
 # Calcular la suma de las duraciones de las tareas críticas
 suma_criticas = tareas_criticas['Di'].sum()
 
-# Mostrar el camino crítico y la suma de las duraciones
-##print("\nCamino Crítico:")
-##print(camino_critico.to_latex(index=False, float_format="%.3f"))
-
-##print(f"\nSuma de las duraciones de las tareas críticas: {suma_criticas:.3f}")
-
-# Asumiendo que 'tabla_completa' y 'tabla_tareas' ya están definidas como DataFrames
-
 # Exportar 'tabla_completa' a LaTeX como una cadena
 tabla_completa_latex = tabla_completa.to_latex(index=False, float_format="%.3f")
 
@@ -379,6 +393,7 @@ tabla_completa_latex = tabla_completa.to_latex(index=False, float_format="%.3f")
 tabla_tareas_latex = tabla_tareas.to_latex(index=False, float_format="%.3f")
 
 tabla_datos_procesado = datos_procesados.to_latex(index=False, float_format="%.3f")
+camino_critico_latex = camino_critico.to_latex(index=False, float_format="%.3f")
 
 # Especificar el archivo LaTeX de salida
 archivo_latex_completo = "output/output_pert.txt"
@@ -391,11 +406,9 @@ with open(archivo_latex_completo, 'w') as f:
     f.write(tabla_completa_latex)  # Escribir la tabla completa
     f.write('\n\n% Tabla Tareas\n')  # Separador entre las tablas
     f.write(tabla_tareas_latex)  # Escribir la tabla de tareas
+    f.write('% Camino crítico')
+    f.write(camino_critico_latex)
+    f.write(f"\n\n% Suma de las duraciones de las tareas críticas: {suma_criticas:.3f}\n")
+
     
-    
-
-#print(f"Las tablas han sido guardadas en {archivo_latex_completo}")
-
-
-##print(f"\nLa tabla completa se ha exportado a: {archivo_latex_completo}")
-##print(f"La tabla de tareas se ha exportado a: {archivo_latex_tareas}")
+ 

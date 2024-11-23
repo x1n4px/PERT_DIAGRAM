@@ -95,23 +95,29 @@ def generar_tabla_tareas(nodos, relaciones, duraciones, Ei, Li):
 
 
 # Nodos en orden progresivo de cálculo
-nodos = [1, 2, 3, 4]
+nodos = [1, 2, 3, 4,5,6]
 
 # Relaciones entre nodos (origen -> (actividad, destino))
 relaciones = {
-    1: [('A', 2), ('C', 3)],  # Nodo 1 se conecta con 2 (A) y 3 (C)
+    1: [('A', 3), ('B', 2)],  # Nodo 1 se conecta con 2 (A) y 3 (C)
     2: [('F1', 3), ('B', 4)], # Nodo 2 se conecta con 3 (F1) y 4 (B)
-    3: [('D', 4)]             # Nodo 3 se conecta con 4 (D)
+    3: [('C', 5)],
+    4: [('F1', 5)],
+    5: [('E',6)]
 }
 
 # Duraciones de las actividades (t0, tm, tp calculado previamente como De)
 duraciones = {
-    'A': 89 / 6,
-    'B': 55 / 6,
-    'C': 51 / 6,
-    'D': 41 / 6,
+    'A': 5.17,
+    'B': 2.33,
+    'C': 4.0,
+    'D': 5.17,
+    'E': 3.83,
     'F1': 0
 }
+
+print(nodos)
+print(duraciones)
 
 # Calcular Early Times (Ei)
 Ei, tabla_early = calcular_early_times(nodos, relaciones, duraciones)
