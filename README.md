@@ -1,5 +1,8 @@
 # PERT_DIAGRAM
 
+Hay que modificar la parte del diagrama de gantt, para que se guarde directamente, en vez de mostrar el diagrama en una ventana flotante
+
+
 ## Formato de entrada:
 | | A | B | C | D | E |
 | --- | --- | ---| --- | --- | --- |
