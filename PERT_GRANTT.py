@@ -154,7 +154,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
 
     # Filtrar nodos que no preceden a otros (es decir, sin flechas salientes)
     nodos_salientes = {var: False for var in variables}
-    print(precedencias)
+
     for origen, destino in relaciones:
         nodos_salientes[origen] = True
 
@@ -189,87 +189,111 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     
     # Renderizar el grafo
     dot.render(archivo_salida, format="png", cleanup=True)
-    ##print(f"Grafo generado y guardado como {archivo_salida}.png")
+    
 
 
 ######################## CALCULO TABLAS #########################
-def calcular_early_times(nodos, relaciones, duraciones):
+
+import pandas as pd
+
+def calcular_early_times_con_detalles(nodos, relaciones, duraciones):
     """
-    Calcula Early Times (Ei) para una red de nodos.
+    Calcula Early Times (Ei) para una red de nodos con registro detallado de cálculos en un array separado.
 
     :param nodos: Lista de nodos (ordenados según dependencias para asegurar cálculos progresivos).
     :param relaciones: Diccionario donde las claves son nodos y los valores son listas de tuplas (actividad, destino).
     :param duraciones: Diccionario con las duraciones de las actividades.
-    :return: Diccionario con los tiempos Ei y un DataFrame con los resultados.
+    :return: Diccionario con los tiempos Ei, un DataFrame con los resultados y una lista de cálculos detallados.
     """
     # Inicializar Early Times (Ei) en 0 para todos los nodos
     Ei = {nodo: 0 for nodo in nodos}
+    detalles_calculos = []
+    detalles_calculos.append(f"E0 = 0")
 
     # Calcular Early Times (Ei) nodo por nodo
     for nodo in nodos:
         if nodo in relaciones:  # Si el nodo tiene conexiones salientes
             for actividad, destino in relaciones[nodo]:
-                # Actualizar Ei del destino como el máximo entre los valores actuales y el nuevo cálculo
-                Ei[destino] = max(Ei[destino], Ei[nodo] + duraciones[actividad])
+                nuevo_valor = Ei[nodo] + duraciones[actividad]
+                if nuevo_valor > Ei[destino]:
+                    Ei[destino] = nuevo_valor
+                    # Registrar el cálculo en detalle
+                    detalles_calculos.append(f"E{destino} = E{nodo} + {actividad} = {Ei[nodo]} + {duraciones[actividad]} = {nuevo_valor}")
 
     # Crear un DataFrame con los resultados
     tabla_early = pd.DataFrame(
         {
-            "Ti": nodos,
+            "Nodo": nodos,
             "Ei": [Ei[nodo] for nodo in nodos],
         }
     )
+    
+    
+    return Ei, tabla_early, detalles_calculos
 
-    return Ei, tabla_early
 
 
-def calcular_late_times(nodos, relaciones, duraciones, Ei):
+
+import pandas as pd
+
+def calcular_late_times_con_detalles(nodos, relaciones, duraciones, Ei):
     """
-    Calcula Late Times (Li) para una red de nodos, usando la lógica inversa de los Early Times.
+    Calcula Late Times (Li) para una red de nodos, registrando cálculos detallados en un array separado.
 
     :param nodos: Lista de nodos (ordenados según dependencias para asegurar cálculos progresivos).
     :param relaciones: Diccionario donde las claves son nodos y los valores son listas de tuplas (actividad, destino).
     :param duraciones: Diccionario con las duraciones de las actividades.
     :param Ei: Diccionario con los Early Times calculados previamente.
-    :return: Diccionario con los tiempos Li y un DataFrame con los resultados.
+    :return: Diccionario con los tiempos Li, un DataFrame con los resultados y una lista de cálculos detallados.
     """
-    # Inicializar Late Times (Li) con valores grandes (un valor suficientemente grande para empezar)
+    # Inicializar Late Times (Li) con valores infinitos
     Li = {nodo: float("inf") for nodo in nodos}
+    detalles_calculos = []
 
     # El último nodo tiene Li igual a Ei
     Li[nodos[-1]] = Ei[nodos[-1]]
+
+    # Registrar cálculo del último nodo
+    detalles_calculos.append(f"L{nodos[-1]} = E{nodos[-1]} = {Ei[nodos[-1]]}")
 
     # Calcular Late Times (Li) de forma inversa
     for nodo in reversed(nodos[:-1]):
         if nodo in relaciones:  # Si el nodo tiene conexiones salientes
             for actividad, destino in relaciones[nodo]:
-                # Actualizar Li del nodo como el mínimo entre los valores actuales y el cálculo usando la actividad
-                Li[nodo] = min(Li[nodo], Li[destino] - duraciones[actividad])
+                nuevo_valor = Li[destino] - duraciones[actividad]
+                if nuevo_valor < Li[nodo]:
+                    Li[nodo] = nuevo_valor
+                    # Registrar el cálculo en detalle
+                    detalles_calculos.append(f"L{nodo} = min(L{nodo}, L{destino} - {actividad}) = min({Li[nodo]}, {Li[destino]} - {duraciones[actividad]}) = {nuevo_valor}")
 
     # Crear un DataFrame con los resultados
     tabla_late = pd.DataFrame(
         {
-            "Ti": nodos,
+            "Nodo": nodos,
             "Li": [Li[nodo] for nodo in nodos],
         }
     )
 
-    return Li, tabla_late
+    return Li, tabla_late, detalles_calculos
 
 
-def generar_tabla_tareas(nodos, relaciones, duraciones, Ei, Li):
+
+def generar_tabla_tareas_con_detalles(nodos, relaciones, duraciones, Ei, Li):
     """
-    Genera la tabla de tareas con la información de la ruta, duración, Ei, Lj, Hij y estado crítico.
+    Genera la tabla de tareas con la información de la ruta, duración, Ei, Lj, Hij y estado crítico,
+    incluyendo los detalles de los cálculos realizados.
 
     :param nodos: Lista de nodos.
     :param relaciones: Diccionario de relaciones entre nodos.
     :param duraciones: Diccionario con las duraciones de las actividades.
     :param Ei: Diccionario con los tiempos de inicio temprano (Ei) de cada nodo.
     :param Li: Diccionario con los tiempos de inicio tardío (Li) de cada nodo.
-    :return: DataFrame con la tabla de tareas.
+    :return: DataFrame con la tabla de tareas y lista de detalles de los cálculos.
     """
     # Lista de resultados para la tabla
     tareas_info = []
+    # Lista para los detalles de los cálculos
+    detalles_tareas = []
 
     # Recorremos todas las actividades para llenar la tabla
     for nodo in nodos:
@@ -296,13 +320,20 @@ def generar_tabla_tareas(nodos, relaciones, duraciones, Ei, Li):
                         critico,
                     ]
                 )
+                # Crear el detalle del cálculo
+                detalle = (
+                    f"Tarea {actividad}: Hij = Lj - Di - Ei = {Lj_val} - {Di} - {Ei_val} = {Hij}, "
+                    f"Crítico: {critico}"
+                )
+                detalles_tareas.append(detalle)
 
     # Crear un DataFrame con la información recopilada
     tabla_tareas = pd.DataFrame(
         tareas_info, columns=["Tarea", "Ruta(i->j)", "Di", "Ei", "Lj", "Hij", "Critico"]
     )
+    print(detalles_tareas)
+    return tabla_tareas, detalles_tareas
 
-    return tabla_tareas
 
 
 ######################## GANTT #############################
@@ -422,16 +453,26 @@ duraciones = {
 duraciones["F1"] = 0
 
 # Calcular Early Times (Ei)
-Ei, tabla_early = calcular_early_times(nodos, relaciones, duraciones)
+Ei, tabla_early, detalles_early = calcular_early_times_con_detalles(nodos, relaciones, duraciones)
 
 # Calcular Late Times (Li)
-Li, tabla_late = calcular_late_times(nodos, relaciones, duraciones, Ei)
+Li, tabla_late, detalles_late = calcular_late_times_con_detalles(nodos, relaciones, duraciones, Ei)
+
+
+# Combinar ambos detalles
+detalles_combinados = {
+    "Early Times": detalles_early,
+    "Late Times": detalles_late,
+}
+
+
+
 
 # Unir las dos tablas en una sola
-tabla_completa = pd.merge(tabla_early, tabla_late, on="Ti")
+tabla_completa = pd.merge(tabla_early, tabla_late, on="Nodo")
 
 # Generar la tabla de tareas
-tabla_tareas = generar_tabla_tareas(nodos, relaciones, duraciones, Ei, Li)
+tabla_tareas, detalles_tareas_criticos = generar_tabla_tareas_con_detalles(nodos, relaciones, duraciones, Ei, Li)
 
 
 create_gantt_chart(tabla_tareas)
@@ -453,7 +494,19 @@ tabla_completa_latex = tabla_completa.to_latex(index=False, float_format="%.3f")
 tabla_tareas_latex = tabla_tareas.to_latex(index=False, float_format="%.3f")
 
 tabla_datos_procesado = datos_procesados.to_latex(index=False, float_format="%.3f")
-camino_critico_latex = camino_critico.to_latex(index=False, float_format="%.3f")
+
+
+
+detalles_combinados_latex = "\n\n% Detalles de los cálculos\n"
+for tipo, detalles in detalles_combinados.items():
+    detalles_combinados_latex += f"\n% {tipo}\n"  # Agregar un encabezado para cada tipo
+    for detalle in detalles:
+        detalles_combinados_latex += f"{detalle}\n"
+
+detalles_combinados_criticos_latex = "\n\n% Detalles de los cálculo críticos\n"
+for detalle in detalles_tareas_criticos:
+    detalles_combinados_criticos_latex += f"{detalle}\n"
+    
 
 # Especificar el archivo LaTeX de salida
 archivo_latex_completo = "output/output_pert.txt"
@@ -464,10 +517,12 @@ with open(archivo_latex_completo, "w") as f:
     f.write(tabla_datos_procesado)
     f.write("% Tabla Completa\n")
     f.write(tabla_completa_latex)  # Escribir la tabla completa
+    f.write(detalles_combinados_latex)  # Agregar los detalles combinados
     f.write("\n\n% Tabla Tareas\n")  # Separador entre las tablas
     f.write(tabla_tareas_latex)  # Escribir la tabla de tareas
+    f.write(detalles_combinados_criticos_latex)
     f.write("% Camino crítico")
-    f.write(camino_critico_latex)
+
     f.write(
         f"\n\n Suma de las duraciones de las tareas críticas: {suma_criticas:.3f}\n"
     )
