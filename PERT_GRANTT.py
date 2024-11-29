@@ -111,7 +111,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
 
     # Crear un diccionario para verificar si un nodo está precedido por otro
     nodos_entrantes = {var: False for var in variables}
-
+    
     for origen, destino in relaciones:
         nodos_entrantes[destino] = True
 
@@ -120,16 +120,16 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
         var for var, tiene_entrantes in nodos_entrantes.items() if not tiene_entrantes
     ]
     nodo_inicio = nodos_sin_precedencia[0] if nodos_sin_precedencia else variables[0]
-
+    
     # Crear nodo de inicio (nodo "1")
     dot.node(str(var_to_num[nodo_inicio]), label=str(var_to_num[nodo_inicio]))
-
     # Agregar las relaciones entre nodos
     for origen, destino in relaciones:
         # Convertir los nombres de las variables a números
         origen_num = var_to_num[origen]
         destino_num = var_to_num[destino]
 
+        
         # Determinar si la flecha debe ser dashed
         style = "dashed" if len(precedencias[destino]) > 0 else "solid"
 
@@ -139,21 +139,22 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
             dashed_counter[destino] += 1
         else:
             label = origen
-
         # Agregar la arista con el label apropiado
         dot.edge(str(origen_num), str(destino_num), label=label, style=style)
 
         # Registrar la relación en el diccionario de precedencias
         precedencias[destino].append(origen)
-
+  
+    
     # Conectar los nodos sin precedencia al nodo "1"
     for var in nodos_sin_precedencia:
         if var != nodo_inicio:  # Evitar que el nodo inicial se conecte a sí mismo
             dot.edge(str(var_to_num[nodo_inicio]), str(var_to_num[var]), label=var)
+    
 
     # Filtrar nodos que no preceden a otros (es decir, sin flechas salientes)
     nodos_salientes = {var: False for var in variables}
-
+    print(precedencias)
     for origen, destino in relaciones:
         nodos_salientes[origen] = True
 
@@ -173,7 +174,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     nodos_finales = [
         var for var, tiene_salientes in nodos_salientes.items() if not tiene_salientes
     ]
-
+  
     # Crear el nodo final con el número siguiente al último nodo
     if nodos_finales:
         ultimo_numero = max(var_to_num.values())  # Número más alto existente
@@ -185,7 +186,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
             dot.edge(
                 str(var_to_num[var]), str(nodo_final_num), label=var
             )  # Conectar sin bucles
-
+    
     # Renderizar el grafo
     dot.render(archivo_salida, format="png", cleanup=True)
     ##print(f"Grafo generado y guardado como {archivo_salida}.png")
@@ -305,14 +306,17 @@ def generar_tabla_tareas(nodos, relaciones, duraciones, Ei, Li):
 
 
 ######################## GANTT #############################
-def create_gantt_chart(tabla_tareas):
+
+
+def create_gantt_chart(tabla_tareas, output_file="gantt_chart.png"):
     """
-    Procesa una tabla de tareas y genera un gráfico de Gantt.
+    Procesa una tabla de tareas y genera un gráfico de Gantt y lo guarda como un archivo PNG.
 
     :param tabla_tareas: DataFrame con columnas ['Tarea', 'Ruta(i->j)', 'Di']
                          - 'Tarea': nombre de la tarea
                          - 'Ruta(i->j)': cadena con formato 'start -> end'
                          - 'Di': fracción completada de la tarea (como número)
+    :param output_file: Nombre del archivo de salida (con extensión .png)
     """
     # Crear el DataFrame con las columnas necesarias
     df = pd.DataFrame(
@@ -343,7 +347,11 @@ def create_gantt_chart(tabla_tareas):
     plt.xlabel("Días")
     plt.ylabel("Tareas")
     plt.title("Gráfico de Gantt")
-    plt.show()
+
+    # Guardar el gráfico como archivo PNG
+    plt.savefig("./output/output_gantt.png", format="png", bbox_inches="tight")
+    plt.close()  # Cerrar la figura para liberar memoria
+
 
 
 ####################### LLAMADA A FUNCIONES #####################
@@ -461,5 +469,5 @@ with open(archivo_latex_completo, "w") as f:
     f.write("% Camino crítico")
     f.write(camino_critico_latex)
     f.write(
-        f"\n\n% Suma de las duraciones de las tareas críticas: {suma_criticas:.3f}\n"
+        f"\n\n Suma de las duraciones de las tareas críticas: {suma_criticas:.3f}\n"
     )
