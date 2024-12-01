@@ -16,11 +16,11 @@ E & 2.000 & 4.000 & 5.000 & 3.833 & 0.250 \\
 Nodo & Ei & Li \\
 \midrule
 1 & 0.000 & 0.000 \\
-2 & 2.330 & 8.010 \\
-3 & 4.660 & inf \\
-4 & 14.340 & inf \\
-5 & 5.170 & 5.170 \\
-6 & 10.340 & 10.340 \\
+2 & 2.330 & 5.170 \\
+3 & 5.170 & 5.170 \\
+4 & 4.660 & 9.170 \\
+5 & 9.170 & 9.170 \\
+6 & 13.000 & 13.000 \\
 \bottomrule
 \end{tabular}
 
@@ -28,47 +28,31 @@ Nodo & Ei & Li \\
 % Detalles de los cálculos
 
 % Early Times
-E0 = 0
+E3 = E1 + A = 0 + 5.17 = 5.17
 E2 = E1 + B = 0 + 2.33 = 2.33
-E5 = E1 + A = 0 + 5.17 = 5.17
-E6 = E2 + B = 2.33 + 2.33 = 4.66
-E3 = E2 + B = 2.33 + 2.33 = 4.66
-E4 = E3 + D = 4.66 + 5.17 = 9.83
-E6 = E5 + A = 5.17 + 5.17 = 10.34
-E4 = E6 + C = 10.34 + 4.0 = 14.34
+E4 = E2 + B = 2.33 + 2.33 = 4.66
+E5 = E3 + C = 5.17 + 4.0 = 9.17
+E6 = E5 + E = 9.17 + 3.83 = 13.0
 
 % Late Times
-L6 = E6 = 10.34
-L5 = min(L5, L6 - A) = min(5.17, 10.34 - 5.17) = 5.17
-L2 = min(L2, L6 - B) = min(8.01, 10.34 - 2.33) = 8.01
-L1 = min(L1, L2 - B) = min(5.68, 8.01 - 2.33) = 5.68
-L1 = min(L1, L5 - A) = min(0.0, 5.17 - 5.17) = 0.0
+L6 = E6 = 13.0
+L5 = min(L5, L6 - E) = min(9.17, 13.0 - 3.83) = 9.17
+L4 = min(L4, L5 - F1) = min(9.17, 9.17 - 0) = 9.17
+L3 = min(L3, L5 - C) = min(5.17, 9.17 - 4.0) = 5.17
+L2 = min(L2, L3 - F1) = min(5.17, 5.17 - 0) = 5.17
+L1 = min(L1, L3 - A) = min(0.0, 5.17 - 5.17) = 0.0
 
 
 % Tabla Tareas
-\begin{tabular}{llrrrrl}
+\begin{tabular}{lllllll}
 \toprule
 Tarea & Ruta(i->j) & Di & Ei & Lj & Hij & Critico \\
 \midrule
-B & 1 -> 2 & 2.330 & 0.000 & 8.010 & 5.680 & No \\
-A & 1 -> 5 & 5.170 & 0.000 & 5.170 & 0.000 & Sí \\
-B & 2 -> 6 & 2.330 & 2.330 & 10.340 & 5.680 & No \\
-B & 2 -> 3 & 2.330 & 2.330 & inf & inf & No \\
-D & 3 -> 4 & 5.170 & 4.660 & inf & inf & No \\
-A & 5 -> 6 & 5.170 & 5.170 & 10.340 & 0.000 & Sí \\
-C & 6 -> 4 & 4.000 & 10.340 & inf & inf & No \\
 \bottomrule
 \end{tabular}
 
 
 % Detalles de los cálculo críticos
-Tarea B: Hij = Lj - Di - Ei = 8.01 - 2.33 - 0 = 5.68, Crítico: No
-Tarea A: Hij = Lj - Di - Ei = 5.17 - 5.17 - 0 = 0.0, Crítico: Sí
-Tarea B: Hij = Lj - Di - Ei = 10.34 - 2.33 - 2.33 = 5.68, Crítico: No
-Tarea B: Hij = Lj - Di - Ei = inf - 2.33 - 2.33 = inf, Crítico: No
-Tarea D: Hij = Lj - Di - Ei = inf - 5.17 - 4.66 = inf, Crítico: No
-Tarea A: Hij = Lj - Di - Ei = 10.34 - 5.17 - 5.17 = 0.0, Crítico: Sí
-Tarea C: Hij = Lj - Di - Ei = inf - 4.0 - 10.34 = inf, Crítico: No
 % Camino crítico
 
- Suma de las duraciones de las tareas críticas: 10.340
+ Suma de las duraciones de las tareas críticas: 0.000
