@@ -16,9 +16,9 @@ E & 2.000 & 4.000 & 5.000 & 3.833 & 0.250 \\
 Nodo & Ei & Li \\
 \midrule
 1 & 0.000 & 0.000 \\
-2 & 2.330 & 5.170 \\
+2 & 2.330 & 4.000 \\
 3 & 5.170 & 5.170 \\
-4 & 4.660 & 9.170 \\
+4 & 7.500 & 9.170 \\
 5 & 9.170 & 9.170 \\
 6 & 13.000 & 13.000 \\
 \bottomrule
@@ -30,16 +30,16 @@ Nodo & Ei & Li \\
 % Early Times
 E2 = E1 + B = 0 + 2.33 = 2.33 
 E3 = MAX(E1 + A, E2+F1 = MAX(0 + 5.17,2.33+0) = 5.17 
-E4 = E2 + B = 2.33 + 2.33 = 4.66 
-E5 = MAX(E3 + C, E4+F1 = MAX(5.17 + 4.0,4.66+0) = 9.17 
+E4 = E2 + D = 2.33 + 5.17 = 7.5 
+E5 = MAX(E3 + C, E4+F1 = MAX(5.17 + 4.0,7.5+0) = 9.17 
 E6 = E5 + E = 9.17 + 3.83 = 13.0 
 
 % Late Times
 L5 = L6 - E = 13.0 - 3.83 = 9.17 
 L4 = L5 - F1 = 9.17 - 0 = 9.17 
 L3 = L5 - C = 9.17 - 4.0 = 5.17 
-L2 = MIN(L3 - F1, L4-B = MIN(5.17 - 0,9.17-2.33) = 5.17   
-L1 = MIN(L3 - A, L2-B = MIN(5.17 - 5.17,5.17-2.33) = 0.0   
+L2 = MIN(L3 - F1, L4-D = MIN(5.17 - 0,9.17-5.17) = 4.0   
+L1 = MIN(L2 - B, L3-A = MIN(4.0 - 2.33,5.17-5.17) = 0.0   
 
 
 % Tabla Tareas
@@ -47,20 +47,20 @@ L1 = MIN(L3 - A, L2-B = MIN(5.17 - 5.17,5.17-2.33) = 0.0
 \toprule
 Tarea & Ruta(i->j) & Di & Ei & Lj & Hij & Critico \\
 \midrule
+B & 1 -> 2 & 2.330 & 0.000 & 4.000 & 1.670 & No \\
 A & 1 -> 3 & 5.170 & 0.000 & 5.170 & 0.000 & Sí \\
-B & 2 -> 4 & 2.330 & 2.330 & 9.170 & 4.510 & No \\
+D & 2 -> 4 & 5.170 & 2.330 & 9.170 & 1.670 & No \\
 C & 3 -> 5 & 4.000 & 5.170 & 9.170 & 0.000 & Sí \\
-B & 1 -> 2 & 2.330 & 0.000 & 5.170 & 2.840 & No \\
 E & 5 -> 6 & 3.830 & 9.170 & 13.000 & 0.000 & Sí \\
 \bottomrule
 \end{tabular}
 
 
 % Detalles de los cálculo críticos
+Tarea B: Hij = Lj - Di - Ei = 4.0 - 2.33 - 0 = 1.67, Crítico: No
 Tarea A: Hij = Lj - Di - Ei = 5.17 - 5.17 - 0 = 0.0, Crítico: Sí
-Tarea B: Hij = Lj - Di - Ei = 9.17 - 2.33 - 2.33 = 4.51, Crítico: No
+Tarea D: Hij = Lj - Di - Ei = 9.17 - 5.17 - 2.33 = 1.67, Crítico: No
 Tarea C: Hij = Lj - Di - Ei = 9.17 - 4.0 - 5.17 = 0.0, Crítico: Sí
-Tarea B: Hij = Lj - Di - Ei = 5.17 - 2.33 - 0 = 2.84, Crítico: No
 Tarea E: Hij = Lj - Di - Ei = 13.0 - 3.83 - 9.17 = 0.0, Crítico: Sí
 
 Camino crítico: A-C-E

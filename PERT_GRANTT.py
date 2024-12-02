@@ -128,6 +128,12 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     
     # Crear nodo de inicio (nodo "1")
     dot.node(str(var_to_num[nodo_inicio]), label=str(var_to_num[nodo_inicio]))
+    # Conectar los nodos sin precedencia al nodo "1"
+    for var in nodos_sin_precedencia:
+        if var != nodo_inicio:  # Evitar que el nodo inicial se conecte a sí mismo
+            dot.edge(str(var_to_num[nodo_inicio]), str(var_to_num[var]), label=var)
+            relaciones_creadas.append((var_to_num[nodo_inicio], var_to_num[var], var, "solid"))  # Registrar
+            
     # Agregar las relaciones entre nodos
     for origen, destino in relaciones:
         # Convertir los nombres de las variables a números
@@ -141,19 +147,20 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
             label = f"F{dashed_counter[destino]}"
             dashed_counter[destino] += 1
         else:
-            label = origen
+            for X,Y,B,C in relaciones_creadas:
+                if B == origen :
+                    label = destino
+                    break
+                else:
+                    label = origen
+
         # Agregar la arista con el label apropiado
         dot.edge(str(origen_num), str(destino_num), label=label, style=style)
-        print(f"origen {origen_num} -> destino {destino_num} -> origen {label}")
         relaciones_creadas.append((origen_num, destino_num, label, style))  # Registrar la relación creada
 
         # Registrar la relación en el diccionario de precedencias
         precedencias[destino].append(origen)
-    # Conectar los nodos sin precedencia al nodo "1"
-    for var in nodos_sin_precedencia:
-        if var != nodo_inicio:  # Evitar que el nodo inicial se conecte a sí mismo
-            dot.edge(str(var_to_num[nodo_inicio]), str(var_to_num[var]), label=var)
-            relaciones_creadas.append((var_to_num[nodo_inicio], var_to_num[var], var, "solid"))  # Registrar
+
 
     # Filtrar nodos que no preceden a otros (es decir, sin flechas salientes)
     nodos_salientes = {var: False for var in variables}
@@ -478,7 +485,6 @@ relations = generar_grafo_pert(
     relaciones_precedencia, variables_filtradas, archivo_salida="output/pert_grafo"
 )
 
-print(relations)
 # Paso 1: Encontrar vértices iniciales
 destinos = {b for _, b in relaciones_precedencia}
 origenes = {a for a, _ in relaciones_precedencia}
