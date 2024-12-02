@@ -90,7 +90,6 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     :param archivo_salida: Nombre del archivo de salida sin extensión.
     :return: Lista de las relaciones creadas en el formato [(origen, destino, label, estilo)].
     """
-    print(relaciones)
     # Crear un objeto Digraph
     dot = Digraph(comment="Grafo PERT")
 
