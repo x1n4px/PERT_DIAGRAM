@@ -214,7 +214,6 @@ def calcular_early_times(relaciones, duraciones, valores_variables):
     Ei = {nodo: 0 for nodo in nodos}
 
     valores_variables_dic = {chr(65 + i): round(float(valores_variables[i]),2) for i in range(len(valores_variables))}
-
     agrupados = {}
 
     for rel in relaciones:
@@ -230,53 +229,36 @@ def calcular_early_times(relaciones, duraciones, valores_variables):
  
     # Listas para almacenar el cálculo y el resultado
     calculos_texto = []
-    valores_finales_previos = []
+    valores_finales_previos = [0]*len(nodos)
     valores_finales = []
-    valores_finales_previos.insert(0,0)
+    valores_finales_previos
     valores_finales.insert(0,0)
+
 
     # Iterar sobre cada valor de la lista Valores
     for i, relaciones in agrupados:
         if len(relaciones) == 1:
-            # Solo un item, hacer X1 + M1
             (X1, Y1, variable1, _) = relaciones[0]
             M1 = valores_variables_dic.get(variable1, 0)
-            resultado = X1 + M1
+            VX1 = valores_finales_previos[X1-1]
+            valores_finales_previos[Y1-1] = VX1 + M1;
+            calculo = f"E{Y1} = E{X1} + {variable1} = {VX1} + {M1} = {VX1+M1}"
         else:
-            resultado = -1
-        
-        valores_finales_previos.append(resultado)
-    
-     
-     # Iterar sobre cada valor de la lista de relaciones agrupadas
-    for i, grupo_relaciones in agrupados:
-        if len(grupo_relaciones) == 1:
-            # Solo un item, hacer X1 + M1
-            (X1, Y1, variable1, _) = grupo_relaciones[0]
-            M1 = valores_variables_dic.get(variable1, 0)
-            VA = valores_finales_previos[X1-1]
-            resultado = VA + M1
-            calculo = f"E{Y1} = E{X1} + {variable1} = ({VA} + {M1}) = {resultado}"
-            if valores_finales_previos[Y1-1] == -1:
-                valores_finales_previos[Y1-1] = resultado
-        else:
-            # Dos items, hacer MAX(X1 + M1, X2 + M2)
-            (X1, Y1, variable1, _) = grupo_relaciones[0]
-            (X2, Y2, variable2, _) = grupo_relaciones[1]
+            (X1, Y1, variable1, _) = relaciones[0]
+            (X2, Y2, variable2, _) = relaciones[1]
             M1 = valores_variables_dic.get(variable1, 0)
             M2 = valores_variables_dic.get(variable2, 0)
             VA = valores_finales_previos[X1-1]
             VB = valores_finales_previos[X2-1]
-            resultado = max(VA + M1, VB + M2)
-            calculo = f"E{Y1} = MAX(E{X1} + {variable1}, E{X2} + {variable2}) = ({VA} + {M1}, {VB} + {M2}) = {resultado}"
-
-            valores_finales_previos[Y1-1] = resultado 
-            
-        
-        # Almacenar el cálculo y el resultado
+            valores_finales_previos[Y1-1] = max(VA + M1, VB + M2);
+            calculo = f"E{Y1} = MAX(E{X1} + {variable1}, E{X2}+{variable2} = MAX({VA} + {M1},{VB}+{M2}) = {max(VA+M1,VB+M2)}"
         calculos_texto.append(calculo)
         valores_finales.append(resultado)
-        
+    
+    
+    print(calculos_texto)
+    print(valores_finales)
+
     calculos_txt_final = []
     # Mostrar los resultados
     for texto, resultado in zip(calculos_texto, valores_finales):
@@ -374,15 +356,15 @@ def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue
     valores_finales_previos[-1] = maxEarlyValue
     valores_finales[-1] = maxEarlyValue
     
-
-    print(relaciones)
+    agrupados.reverse()
     # Iterar sobre cada valor de la lista Valores
     for i, relaciones in agrupados:
         if len(relaciones) == 1:
             # Solo un item, hacer X1 + M1
             (X1, Y1, variable1, _) = relaciones[0]
             M1 = valores_variables_dic.get(variable1, 0)
-            resultado = X1 + M1
+            resultado = Y1 + M1
+            #print(f"E{X1} = {Y1} - {M1}")
         else:
             resultado = -1
         
