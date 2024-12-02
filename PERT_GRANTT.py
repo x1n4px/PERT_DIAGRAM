@@ -201,7 +201,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
 ######################## CALCULO TABLAS #########################
 
 
-def calcular_early_times(relaciones, duraciones, valores_variables):
+def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue):
     """
     Calcula los tiempos más tempranos (Ei) para cada nodo en un grafo dado.
 
@@ -217,7 +217,7 @@ def calcular_early_times(relaciones, duraciones, valores_variables):
     agrupados = {}
 
     for rel in relaciones:
-        i = rel[1]  # El segundo valor de cada relación
+        i = rel[0]  # El segundo valor de cada relación
         # Si el grupo para este i aún no existe, crear una lista vacía
         if i not in agrupados:
             agrupados[i] = []
@@ -230,43 +230,46 @@ def calcular_early_times(relaciones, duraciones, valores_variables):
     # Listas para almacenar el cálculo y el resultado
     calculos_texto = []
     valores_finales_previos = [0]*len(nodos)
-    valores_finales = []
+    valores_finales_previos[-1] = maxEarlyValue
     valores_finales_previos
-    valores_finales.insert(0,0)
 
+    agrupados.reverse()
 
     # Iterar sobre cada valor de la lista Valores
     for i, relaciones in agrupados:
         if len(relaciones) == 1:
             (X1, Y1, variable1, _) = relaciones[0]
             M1 = valores_variables_dic.get(variable1, 0)
-            VX1 = valores_finales_previos[X1-1]
-            valores_finales_previos[Y1-1] = VX1 + M1;
-            calculo = f"E{Y1} = E{X1} + {variable1} = {VX1} + {M1} = {VX1+M1}"
+            VX1 = valores_finales_previos[Y1-1]
+            #print(f"Para el indice {Y1-1} da el valor: {VX1}")
+            resultado = VX1 - M1
+            valores_finales_previos[X1-1] = resultado;
+            calculo = f"L{X1} = L{Y1} - {variable1} = {VX1} - {M1} = {VX1-M1}"
+            #print(calculo, "-->", valores_finales_previos)
         else:
             (X1, Y1, variable1, _) = relaciones[0]
             (X2, Y2, variable2, _) = relaciones[1]
             M1 = valores_variables_dic.get(variable1, 0)
             M2 = valores_variables_dic.get(variable2, 0)
-            VA = valores_finales_previos[X1-1]
-            VB = valores_finales_previos[X2-1]
-            valores_finales_previos[Y1-1] = max(VA + M1, VB + M2);
-            calculo = f"E{Y1} = MAX(E{X1} + {variable1}, E{X2}+{variable2} = MAX({VA} + {M1},{VB}+{M2}) = {max(VA+M1,VB+M2)}"
+            VA = valores_finales_previos[Y1-1]
+            VB = valores_finales_previos[Y2-1]
+            resultado = min(VA - M1, VB - M2)
+            valores_finales_previos[X1-1] = resultado;
+            calculo = f"L{X1} = MIN(L{Y1} - {variable1}, L{Y2}-{variable2} = MIN({VA} - {M1},{VB}-{M2}) = {min(VA-M1,VB-M2)}  "
+            #print(calculo, "-->", valores_finales_previos)
+
         calculos_texto.append(calculo)
-        valores_finales.append(resultado)
+        
     
-    
-    print(calculos_texto)
-    print(valores_finales)
+   
 
     calculos_txt_final = []
     # Mostrar los resultados
-    for texto, resultado in zip(calculos_texto, valores_finales):
+    for texto, resultado in zip(calculos_texto, valores_finales_previos):
         calculos_txt_final.append(f"{texto} ")
     
     
-    Ei = {i+1: valor for i, valor in enumerate(valores_finales)}
-    
+    Ei = {i+1: valor for i, valor in enumerate(valores_finales_previos)}
     return Ei, calculos_txt_final
 
    
@@ -319,9 +322,9 @@ def calcular_late_times_con_detalles(nodos, relaciones, duraciones, lastValue):
     )
     return Li, tabla_late, detalles_calculos
 '''
-def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue):
+def calcular_early_times(relaciones, duraciones, valores_variables):
     """
-    Calcula los tiempos más tardios (Li) para cada nodo en un grafo dado.
+    Calcula los tiempos más tempranos (Ei) para cada nodo en un grafo dado.
 
     :param relaciones: Lista de relaciones [(origen, destino, nombre_variable, _)].
     :param duraciones: Diccionario con las duraciones de cada variable.
@@ -329,10 +332,9 @@ def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue
     """
     # Inicializar tiempos más tempranos (Ei)
     nodos = set([rel[0] for rel in relaciones] + [rel[1] for rel in relaciones])  # Obtener nodos únicos
-    Li = {nodo: 0 for nodo in nodos}
-    
-    valores_variables_dic = {chr(65 + i): round(float(valores_variables[i]),2) for i in range(len(valores_variables))}
+    Ei = {nodo: 0 for nodo in nodos}
 
+    valores_variables_dic = {chr(65 + i): round(float(valores_variables[i]),2) for i in range(len(valores_variables))}
     agrupados = {}
 
     for rel in relaciones:
@@ -346,60 +348,41 @@ def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue
     
     agrupados = sorted(list(agrupados.items()), key=lambda x:x[0])
  
- 
-   
- 
     # Listas para almacenar el cálculo y el resultado
     calculos_texto = []
-    valores_finales_previos = [0] * len(nodos)
-    valores_finales = [0] * len(nodos)
-    valores_finales_previos[-1] = maxEarlyValue
-    valores_finales[-1] = maxEarlyValue
-    
-    agrupados.reverse()
+    valores_finales_previos = [0]*len(nodos)
+    valores_finales = []
+    valores_finales_previos
+    valores_finales.insert(0,0)
+
+
+   
+
     # Iterar sobre cada valor de la lista Valores
     for i, relaciones in agrupados:
         if len(relaciones) == 1:
-            # Solo un item, hacer X1 + M1
             (X1, Y1, variable1, _) = relaciones[0]
             M1 = valores_variables_dic.get(variable1, 0)
-            resultado = Y1 + M1
-            #print(f"E{X1} = {Y1} - {M1}")
+            VX1 = valores_finales_previos[X1-1]
+            resultado = VX1 + M1
+            valores_finales_previos[Y1-1] = resultado;
+            calculo = f"E{Y1} = E{X1} + {variable1} = {VX1} + {M1} = {VX1+M1}"
         else:
-            resultado = -1
-        
-        valores_finales_previos.append(resultado)
-    
-     
-     # Iterar sobre cada valor de la lista de relaciones agrupadas
-    for i, grupo_relaciones in agrupados:
-        if len(grupo_relaciones) == 1:
-            # Solo un item, hacer X1 + M1
-            (X1, Y1, variable1, _) = grupo_relaciones[0]
-            M1 = valores_variables_dic.get(variable1, 0)
-            VA = valores_finales_previos[X1-1]
-            resultado = VA + M1
-            calculo = f"E{Y1} = E{X1} + {variable1} = ({VA} + {M1}) = {resultado}"
-            if valores_finales_previos[Y1-1] == -1:
-                valores_finales_previos[Y1-1] = resultado
-        else:
-            # Dos items, hacer MAX(X1 + M1, X2 + M2)
-            (X1, Y1, variable1, _) = grupo_relaciones[0]
-            (X2, Y2, variable2, _) = grupo_relaciones[1]
+            (X1, Y1, variable1, _) = relaciones[0]
+            (X2, Y2, variable2, _) = relaciones[1]
             M1 = valores_variables_dic.get(variable1, 0)
             M2 = valores_variables_dic.get(variable2, 0)
             VA = valores_finales_previos[X1-1]
             VB = valores_finales_previos[X2-1]
             resultado = max(VA + M1, VB + M2)
-            calculo = f"E{Y1} = MAX(E{X1} + {variable1}, E{X2} + {variable2}) = ({VA} + {M1}, {VB} + {M2}) = {resultado}"
-
-            valores_finales_previos[Y1-1] = resultado 
-            
-        
-        # Almacenar el cálculo y el resultado
+            valores_finales_previos[Y1-1] = resultado;
+            calculo = f"E{Y1} = MAX(E{X1} + {variable1}, E{X2}+{variable2} = MAX({VA} + {M1},{VB}+{M2}) = {max(VA+M1,VB+M2)}"
         calculos_texto.append(calculo)
         valores_finales.append(resultado)
-        
+    
+    
+     
+
     calculos_txt_final = []
     # Mostrar los resultados
     for texto, resultado in zip(calculos_texto, valores_finales):
@@ -423,29 +406,35 @@ def generar_tabla_tareas_con_detalles(nodos, relaciones, duraciones, Ei, Li):
     :param Li: Diccionario con los tiempos de inicio tardío (Li) de cada nodo.
     :return: DataFrame con la tabla de tareas y lista de detalles de los cálculos.
     """
+    relaciones = [rel for rel in relaciones if rel[2] != 'F1']
+
+    
+    valores_variables_dic = {chr(65 + i): round(float(duraciones[i]),2) for i in range(len(duraciones))}
+    
     # Lista de resultados para la tabla
     tareas_info = []
     # Lista para los detalles de los cálculos
     detalles_tareas = []
 
     # Recorremos todas las actividades para llenar la tabla
-    for nodo in nodos:
-        if nodo in relaciones:  # Si el nodo tiene conexiones salientes
-            for actividad, destino in relaciones[nodo]:
+
+    for X,Y,M,_ in relaciones:
                 # Obtener la duración de la tarea
-                Di = duraciones[actividad]
+                Di = valores_variables_dic.get(M, 0)
                 # Obtener Ei para el nodo origen y Lj para el nodo destino
-                Ei_val = Ei[nodo]
-                Lj_val = Li[destino]
+                Ei_val = Ei[X]
+                Lj_val = Li[Y]
                 # Calcular Hij (holgura)
                 Hij = Lj_val - Di - Ei_val
                 # Verificar si la tarea es crítica
                 critico = "Sí" if Hij == 0 else "No"
+                
+                #print(f"Tarea {M} Ruta {X} -> {Y} di {Di} Ei {Ei_val} Lj {Lj_val} Hij {Hij} critico={critico}")
                 # Añadir la fila correspondiente a la tabla
                 tareas_info.append(
                     [
-                        actividad,
-                        f"{nodo} -> {destino}",
+                        M,
+                        f"{X} -> {Y}",
                         Di,
                         Ei_val,
                         Lj_val,
@@ -455,7 +444,7 @@ def generar_tabla_tareas_con_detalles(nodos, relaciones, duraciones, Ei, Li):
                 )
                 # Crear el detalle del cálculo
                 detalle = (
-                    f"Tarea {actividad}: Hij = Lj - Di - Ei = {Lj_val} - {Di} - {Ei_val} = {Hij}, "
+                    f"Tarea {M}: Hij = Lj - Di - Ei = {Lj_val} - {Di} - {Ei_val} = {Hij}, "
                     f"Crítico: {critico}"
                 )
                 detalles_tareas.append(detalle)
@@ -464,7 +453,7 @@ def generar_tabla_tareas_con_detalles(nodos, relaciones, duraciones, Ei, Li):
     tabla_tareas = pd.DataFrame(
         tareas_info, columns=["Tarea", "Ruta(i->j)", "Di", "Ei", "Lj", "Hij", "Critico"]
     )
-
+     
     return tabla_tareas, detalles_tareas
 
 
@@ -598,17 +587,16 @@ detalles_combinados = {
 
 
 df_tabla_early = pd.DataFrame(list(tabla_early.items()), columns = ['Nodo', 'Ei'])
+df_tabla_late = pd.DataFrame(list(tabla_late.items()), columns=['Nodo', 'Li'])
 
- 
-'''
+
 # Unir las dos tablas en una sola
-tabla_completa = pd.merge(df_tabla_early, tabla_late, on="Nodo")
+tabla_completa = pd.merge(df_tabla_early, df_tabla_late, on="Nodo")
 
-    
+
 
 # Generar la tabla de tareas
-tabla_tareas, detalles_tareas_criticos = generar_tabla_tareas_con_detalles(nodos, relations, duraciones, tabla_early, Li)
-
+tabla_tareas, detalles_tareas_criticos = generar_tabla_tareas_con_detalles(nodos, relations, columna_de, tabla_early, tabla_late)
 
 create_gantt_chart(tabla_tareas)
 
@@ -618,10 +606,17 @@ tareas_criticas = tabla_tareas[tabla_tareas["Critico"] == "Sí"]
 
 # Mostrar el camino crítico
 camino_critico = tareas_criticas[["Tarea", "Ruta(i->j)", "Di"]]
+camino_critico_lista = '-'.join(camino_critico['Tarea'])
+# Calcular la duración total
+duracion_total_camino_critico = sum(camino_critico['Di'])
+
+# Crear la expresión escrita
+duraciones_camino_critico = ' + '.join(map(lambda x: f"{x:.2f}", camino_critico['Di']))
+calculo_duracion_camino_critico_latex = f"Duración crítica = {camino_critico_lista} = {duraciones_camino_critico} = {duracion_total_camino_critico:.2f}"
 
 # Calcular la suma de las duraciones de las tareas críticas
 suma_criticas = tareas_criticas["Di"].sum()
-
+ 
 # Exportar 'tabla_completa' a LaTeX como una cadena
 tabla_completa_latex = tabla_completa.to_latex(index=False, float_format="%.3f")
 
@@ -656,9 +651,9 @@ with open(archivo_latex_completo, "w") as f:
     f.write("\n\n% Tabla Tareas\n")  # Separador entre las tablas
     f.write(tabla_tareas_latex)  # Escribir la tabla de tareas
     f.write(detalles_combinados_criticos_latex)
-    f.write("% Camino crítico")
-
-    f.write(
-        f"\n\n Suma de las duraciones de las tareas críticas: {suma_criticas:.3f}\n"
-    )
-'''
+    f.write("\nCamino crítico: ")
+    f.write(camino_critico_lista)
+    f.write("\n")
+    f.write(calculo_duracion_camino_critico_latex)
+    
+ 
