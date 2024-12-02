@@ -81,8 +81,6 @@ def leer_matriz_dependencias(archivo_excel):
     return relaciones, variables
 
 
-from graphviz import Digraph
-
 def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     """
     Genera un grafo PERT a partir de las relaciones de precedencia usando Graphviz.
@@ -92,7 +90,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     :param archivo_salida: Nombre del archivo de salida sin extensión.
     :return: Lista de las relaciones creadas en el formato [(origen, destino, label, estilo)].
     """
-    
+    print(relaciones)
     # Crear un objeto Digraph
     dot = Digraph(comment="Grafo PERT")
 
@@ -135,7 +133,6 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
         # Convertir los nombres de las variables a números
         origen_num = var_to_num[origen]
         destino_num = var_to_num[destino]
-
         # Determinar si la flecha debe ser dashed
         style = "dashed" if len(precedencias[destino]) > 0 else "solid"
 
@@ -147,11 +144,11 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
             label = origen
         # Agregar la arista con el label apropiado
         dot.edge(str(origen_num), str(destino_num), label=label, style=style)
+        print(f"origen {origen_num} -> destino {destino_num} -> origen {label}")
         relaciones_creadas.append((origen_num, destino_num, label, style))  # Registrar la relación creada
 
         # Registrar la relación en el diccionario de precedencias
         precedencias[destino].append(origen)
-  
     # Conectar los nodos sin precedencia al nodo "1"
     for var in nodos_sin_precedencia:
         if var != nodo_inicio:  # Evitar que el nodo inicial se conecte a sí mismo
@@ -273,55 +270,7 @@ def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue
     return Ei, calculos_txt_final
 
    
-'''
-def calcular_late_times_con_detalles(nodos, relaciones, duraciones, lastValue):
-    """
-    Calcula Late Times (Li) para una red de nodos, registrando cálculos detallados en un array separado.
 
-    :param nodos: Lista de nodos (ordenados según dependencias para asegurar cálculos progresivos).
-    :param relaciones: Lista de relaciones [(origen, destino, nombre_variable, tag)].
-    :param duraciones: Diccionario con las duraciones de las actividades.
-    :param Ei: Diccionario con los Early Times calculados previamente.
-    :return: Diccionario con los tiempos Li, un DataFrame con los resultados y una lista de cálculos detallados.
-    """
-    # Inicializar Late Times (Li) con valores infinitos
-    Li = {nodo: float("inf") for nodo in nodos}
-    detalles_calculos = []
-
-    # El último nodo tiene Li igual a Ei
-    Li[nodos[-1]] = lastValue
-
-    # Registrar cálculo del último nodo
-    detalles_calculos.append(f"L{nodos[-1]} = E{nodos[-1]} = {lastValue}")
-
-    # Crear un diccionario para las relaciones por nodo de origen
-    relaciones_dict = {}
-    for origen, destino, actividad, _ in relaciones:
-        if origen not in relaciones_dict:
-            relaciones_dict[origen] = []
-        relaciones_dict[origen].append((actividad, destino))
-
-    # Calcular Late Times (Li) de forma inversa
-    for nodo in reversed(nodos[:-1]):
-        if nodo in relaciones_dict:  # Si el nodo tiene conexiones salientes
-            for actividad, destino in relaciones_dict[nodo]:
-                nuevo_valor = Li[destino] - duraciones.get(actividad, 0)
-                if nuevo_valor < Li[nodo]:
-                    Li[nodo] = nuevo_valor
-                    # Registrar el cálculo en detalle
-                    detalles_calculos.append(
-                        f"L{nodo} = min(L{nodo}, L{destino} - {actividad}) = min({Li[nodo]}, {Li[destino]} - {duraciones[actividad]}) = {nuevo_valor}"
-                    )
-
-    # Crear un DataFrame con los resultados
-    tabla_late = pd.DataFrame(
-        {
-            "Nodo": nodos,
-            "Li": [Li[nodo] for nodo in nodos],
-        }
-    )
-    return Li, tabla_late, detalles_calculos
-'''
 def calcular_early_times(relaciones, duraciones, valores_variables):
     """
     Calcula los tiempos más tempranos (Ei) para cada nodo en un grafo dado.
@@ -529,7 +478,7 @@ relations = generar_grafo_pert(
     relaciones_precedencia, variables_filtradas, archivo_salida="output/pert_grafo"
 )
 
-
+print(relations)
 # Paso 1: Encontrar vértices iniciales
 destinos = {b for _, b in relaciones_precedencia}
 origenes = {a for a, _ in relaciones_precedencia}
