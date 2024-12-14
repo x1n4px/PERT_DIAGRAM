@@ -1,6 +1,10 @@
 import pandas as pd
 from graphviz import Digraph
 import matplotlib.pyplot as plt
+import argparse
+import os
+from datetime import datetime
+
 
 
 def leer_y_procesar_excel(archivo_excel):
@@ -59,16 +63,15 @@ def leer_matriz_dependencias(archivo_excel):
     """
     # Leer el archivo Excel sin encabezados
     df = pd.read_excel(archivo_excel, header=None)
-
+    
     # Leer la matriz de dependencias (de A5 a P20)
     matriz = df.iloc[4:20, 0:16]  # Rango de A5:P20 (indexado desde 0 en pandas)
-
+    
     # La primera fila y columna contienen los nombres de las variables
     variables = matriz.iloc[0, 1:].tolist()  # Variables de la primera fila (B5:P5)
     matriz = matriz.iloc[
         1:, 1:
     ].values  # Valores numéricos de la matriz (sin encabezados)
-
     # Crear una lista para almacenar las relaciones de precedencia
     relaciones = []
 
@@ -90,6 +93,8 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     :param archivo_salida: Nombre del archivo de salida sin extensión.
     :return: Lista de las relaciones creadas en el formato [(origen, destino, label, estilo)].
     """
+    
+    
     # Crear un objeto Digraph
     dot = Digraph(comment="Grafo PERT")
 
@@ -116,6 +121,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     # Crear un diccionario para verificar si un nodo está precedido por otro
     nodos_entrantes = {var: False for var in variables}
     
+    
     for origen, destino in relaciones:
         nodos_entrantes[destino] = True
 
@@ -132,7 +138,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
         if var != nodo_inicio:  # Evitar que el nodo inicial se conecte a sí mismo
             dot.edge(str(var_to_num[nodo_inicio]), str(var_to_num[var]), label=var)
             relaciones_creadas.append((var_to_num[nodo_inicio], var_to_num[var], var, "solid"))  # Registrar
-            
+    
     # Agregar las relaciones entre nodos
     for origen, destino in relaciones:
         # Convertir los nombres de las variables a números
@@ -152,8 +158,9 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
                     break
                 else:
                     label = origen
-
+        
         # Agregar la arista con el label apropiado
+        #print(f"Origen {origen_num} -> destino {destino_num} :: label {label}")
         dot.edge(str(origen_num), str(destino_num), label=label, style=style)
         relaciones_creadas.append((origen_num, destino_num, label, style))  # Registrar la relación creada
 
@@ -200,6 +207,12 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     # Devolver la lista de relaciones creadas
     return relaciones_creadas
 
+
+
+
+
+
+    
 
 ######################## CALCULO TABLAS #########################
 
@@ -416,7 +429,7 @@ def generar_tabla_tareas_con_detalles(nodos, relaciones, duraciones, Ei, Li):
 ######################## GANTT #############################
 
 
-def create_gantt_chart(tabla_tareas, output_file="gantt_chart.png"):
+def create_gantt_chart(tabla_tareas, dir_name,  output_file="gantt_chart.png"):
     """
     Procesa una tabla de tareas y genera un gráfico de Gantt y lo guarda como un archivo PNG.
 
@@ -457,157 +470,176 @@ def create_gantt_chart(tabla_tareas, output_file="gantt_chart.png"):
     plt.title("Gráfico de Gantt")
 
     # Guardar el gráfico como archivo PNG
-    plt.savefig("./output/output_gantt.png", format="png", bbox_inches="tight")
+    plt.savefig(f"./{dir_name}/output_gantt.png", format="png", bbox_inches="tight")
     plt.close()  # Cerrar la figura para liberar memoria
 
 
 
+def generate_global(archivo_excel, archivo_latex): 
+    var_name = ""
+    if "input/" in archivo_excel:
+        # Extraer la parte de la cadena después de "input/"
+        file_name_with_ext = archivo_excel[archivo_excel.find("input/") + len("input/"):].strip()
+    
+    # Obtener solo el nombre del archivo sin la extensión
+    var_name = os.path.splitext(file_name_with_ext)[0]
+    dir_name = f"output/{var_name}_{datetime.now()}"
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+
+    datos_procesados = leer_y_procesar_excel(archivo_excel)
+
+    # Supongamos que 'datos' es el DataFrame que devuelve la función
+    columna_de = datos_procesados["De"]
+
+    # Leer las relaciones de precedencia
+    relaciones_precedencia, variables = leer_matriz_dependencias(archivo_excel)
+
+
+    # Crear un conjunto con todos los elementos únicos de las tuplas en lista_B
+    elementos_en_B = set(item for tupla in relaciones_precedencia for item in tupla)
+
+    # Filtrar la lista A para mantener solo los elementos que están en el conjunto
+    variables_filtradas = [elemento for elemento in variables if elemento in elementos_en_B]
+    # Generar el grafo PERT
+    relations = generar_grafo_pert(
+        relaciones_precedencia, variables_filtradas, archivo_salida=f"{dir_name}/pert_grafo"
+    )
+
+
+    # Paso 1: Encontrar vértices iniciales
+    destinos = {b for _, b in relaciones_precedencia}
+    origenes = {a for a, _ in relaciones_precedencia}
+    iniciales = origenes - destinos  # Vértices que no son precedidos por nadie
+
+    # Paso 2: Crear un mapeo de identificadores de nodos
+    todos_los_nodos = origenes | destinos
+    nodo_ids = {nodo: i + 2 for i, nodo in enumerate(todos_los_nodos)}
+    nodo_ids["1"] = 1  # Nodo inicial
+
+
+
+        
+
+    # Nodos en orden progresivo de cálculo
+    # Extraer los números de los nodos
+    nodos = set()  # Claves del diccionario
+    for origen, destino, _, _ in relations:
+        nodos.add(origen)
+        nodos.add(destino)
+
+    nodos = sorted(list(nodos))
+
+
+    # Duraciones de las actividades (t0, tm, tp calculado previamente como De)
+    # Crear el diccionario 'duraciones' con las claves de la columna 'Variable' y los valores de la columna 'De'
+    duraciones = {}
+
+    # Recorrer las filas del DataFrame y agregar los valores correspondientes al diccionario
+    # Crear el diccionario con redondeo
+    duraciones = {
+        row["Variable"]: round(row["De"], 2) for _, row in datos_procesados.iterrows()
+    }
+
+
+    # Agregar 'F1': 0 al diccionario
+    duraciones["F1"] = 0
+
+    # Calcular Early Times (Ei)
+    tabla_early, detalles_early = calcular_early_times(relations, duraciones, columna_de)
+
+
+    # Calcular Late Times (Li)
+    tabla_late, detalles_late = calcular_late_times(relations, duraciones, columna_de, list(tabla_early.values())[-1])
+
+
+
+
+
+    # Combinar ambos detalles
+    detalles_combinados = {
+        "Early Times": detalles_early,
+        "Late Times": detalles_late,
+    }
+
+
+    df_tabla_early = pd.DataFrame(list(tabla_early.items()), columns = ['Nodo', 'Ei'])
+    df_tabla_late = pd.DataFrame(list(tabla_late.items()), columns=['Nodo', 'Li'])
+
+
+    # Unir las dos tablas en una sola
+    tabla_completa = pd.merge(df_tabla_early, df_tabla_late, on="Nodo")
+
+
+
+    # Generar la tabla de tareas
+    tabla_tareas, detalles_tareas_criticos = generar_tabla_tareas_con_detalles(nodos, relations, columna_de, tabla_early, tabla_late)
+
+    create_gantt_chart(tabla_tareas, dir_name)
+
+
+    # Filtrar las tareas críticas
+    tareas_criticas = tabla_tareas[tabla_tareas["Critico"] == "Sí"]
+
+    # Mostrar el camino crítico
+    camino_critico = tareas_criticas[["Tarea", "Ruta(i->j)", "Di"]]
+    camino_critico_lista = '-'.join(camino_critico['Tarea'])
+    # Calcular la duración total
+    duracion_total_camino_critico = sum(camino_critico['Di'])
+
+    # Crear la expresión escrita
+    duraciones_camino_critico = ' + '.join(map(lambda x: f"{x:.2f}", camino_critico['Di']))
+    calculo_duracion_camino_critico_latex = f"Duración crítica = {camino_critico_lista} = {duraciones_camino_critico} = {duracion_total_camino_critico:.2f}"
+
+    # Calcular la suma de las duraciones de las tareas críticas
+    suma_criticas = tareas_criticas["Di"].sum()
+    
+    # Exportar 'tabla_completa' a LaTeX como una cadena
+    tabla_completa_latex = tabla_completa.to_latex(index=False, float_format="%.3f")
+
+    # Exportar 'tabla_tareas' a LaTeX como una cadena
+    tabla_tareas_latex = tabla_tareas.to_latex(index=False, float_format="%.3f")
+
+    tabla_datos_procesado = datos_procesados.to_latex(index=False, float_format="%.3f")
+
+
+
+    detalles_combinados_latex = "\n\n% Detalles de los cálculos\n"
+    for tipo, detalles in detalles_combinados.items():
+        detalles_combinados_latex += f"\n% {tipo}\n"  # Agregar un encabezado para cada tipo
+        for detalle in detalles:
+            detalles_combinados_latex += f"{detalle}\n"
+
+    detalles_combinados_criticos_latex = "\n\n% Detalles de los cálculo críticos\n"
+    for detalle in detalles_tareas_criticos:
+        detalles_combinados_criticos_latex += f"{detalle}\n"
+        
+
+    # Especificar el archivo LaTeX de salida
+    archivo_latex_completo = f"{dir_name}/output_pert.txt"
+
+    # Escribir ambas tablas en el mismo archivo
+    with open(archivo_latex_completo, "w") as f:
+        f.write("% Datos procesados\n")
+        f.write(tabla_datos_procesado)
+        f.write("% Tabla Completa\n")
+        f.write(tabla_completa_latex)  # Escribir la tabla completa
+        f.write(detalles_combinados_latex)  # Agregar los detalles combinados
+        f.write("\n\n% Tabla Tareas\n")  # Separador entre las tablas
+        f.write(tabla_tareas_latex)  # Escribir la tabla de tareas
+        f.write(detalles_combinados_criticos_latex)
+        f.write("\nCamino crítico: ")
+        f.write(camino_critico_lista)
+        f.write("\n")
+        f.write(calculo_duracion_camino_critico_latex)
+        
+
+
 ####################### LLAMADA A FUNCIONES #####################
-archivo_excel = "input/input.xlsx"
-archivo_latex = "output/tabla.tex"  
+#excel = ["input/ej3.xlsx", "input/ej4.xlsx", "input/ej5.xlsx"]
+latex = "output/tabla.tex"  
 
-# Leer, procesar y exportar
-datos_procesados = leer_y_procesar_excel(archivo_excel)
-
-# Supongamos que 'datos' es el DataFrame que devuelve la función
-columna_de = datos_procesados["De"]
-
-# Leer las relaciones de precedencia
-relaciones_precedencia, variables = leer_matriz_dependencias(archivo_excel)
-# Crear un conjunto con todos los elementos únicos de las tuplas en lista_B
-elementos_en_B = set(item for tupla in relaciones_precedencia for item in tupla)
-
-# Filtrar la lista A para mantener solo los elementos que están en el conjunto
-variables_filtradas = [elemento for elemento in variables if elemento in elementos_en_B]
-# Generar el grafo PERT
-relations = generar_grafo_pert(
-    relaciones_precedencia, variables_filtradas, archivo_salida="output/pert_grafo"
-)
-
-# Paso 1: Encontrar vértices iniciales
-destinos = {b for _, b in relaciones_precedencia}
-origenes = {a for a, _ in relaciones_precedencia}
-iniciales = origenes - destinos  # Vértices que no son precedidos por nadie
-
-# Paso 2: Crear un mapeo de identificadores de nodos
-todos_los_nodos = origenes | destinos
-nodo_ids = {nodo: i + 2 for i, nodo in enumerate(todos_los_nodos)}
-nodo_ids["1"] = 1  # Nodo inicial
-
-
-
-    
-
-# Nodos en orden progresivo de cálculo
-# Extraer los números de los nodos
-nodos = set()  # Claves del diccionario
-for origen, destino, _, _ in relations:
-    nodos.add(origen)
-    nodos.add(destino)
-
-nodos = sorted(list(nodos))
-
-
-# Duraciones de las actividades (t0, tm, tp calculado previamente como De)
-# Crear el diccionario 'duraciones' con las claves de la columna 'Variable' y los valores de la columna 'De'
-duraciones = {}
-
-# Recorrer las filas del DataFrame y agregar los valores correspondientes al diccionario
-# Crear el diccionario con redondeo
-duraciones = {
-    row["Variable"]: round(row["De"], 2) for _, row in datos_procesados.iterrows()
-}
-
-
-# Agregar 'F1': 0 al diccionario
-duraciones["F1"] = 0
-
-# Calcular Early Times (Ei)
-tabla_early, detalles_early = calcular_early_times(relations, duraciones, columna_de)
-
-
-# Calcular Late Times (Li)
-tabla_late, detalles_late = calcular_late_times(relations, duraciones, columna_de, list(tabla_early.values())[-1])
-
-
-
-
-
-# Combinar ambos detalles
-detalles_combinados = {
-    "Early Times": detalles_early,
-    "Late Times": detalles_late,
-}
-
-
-df_tabla_early = pd.DataFrame(list(tabla_early.items()), columns = ['Nodo', 'Ei'])
-df_tabla_late = pd.DataFrame(list(tabla_late.items()), columns=['Nodo', 'Li'])
-
-
-# Unir las dos tablas en una sola
-tabla_completa = pd.merge(df_tabla_early, df_tabla_late, on="Nodo")
-
-
-
-# Generar la tabla de tareas
-tabla_tareas, detalles_tareas_criticos = generar_tabla_tareas_con_detalles(nodos, relations, columna_de, tabla_early, tabla_late)
-
-create_gantt_chart(tabla_tareas)
-
-
-# Filtrar las tareas críticas
-tareas_criticas = tabla_tareas[tabla_tareas["Critico"] == "Sí"]
-
-# Mostrar el camino crítico
-camino_critico = tareas_criticas[["Tarea", "Ruta(i->j)", "Di"]]
-camino_critico_lista = '-'.join(camino_critico['Tarea'])
-# Calcular la duración total
-duracion_total_camino_critico = sum(camino_critico['Di'])
-
-# Crear la expresión escrita
-duraciones_camino_critico = ' + '.join(map(lambda x: f"{x:.2f}", camino_critico['Di']))
-calculo_duracion_camino_critico_latex = f"Duración crítica = {camino_critico_lista} = {duraciones_camino_critico} = {duracion_total_camino_critico:.2f}"
-
-# Calcular la suma de las duraciones de las tareas críticas
-suma_criticas = tareas_criticas["Di"].sum()
+nombres_archivos_con_carpeta = [os.path.join("input", archivo) for archivo in (os.listdir("input")) if os.path.isfile(os.path.join("input", archivo))]
  
-# Exportar 'tabla_completa' a LaTeX como una cadena
-tabla_completa_latex = tabla_completa.to_latex(index=False, float_format="%.3f")
-
-# Exportar 'tabla_tareas' a LaTeX como una cadena
-tabla_tareas_latex = tabla_tareas.to_latex(index=False, float_format="%.3f")
-
-tabla_datos_procesado = datos_procesados.to_latex(index=False, float_format="%.3f")
-
-
-
-detalles_combinados_latex = "\n\n% Detalles de los cálculos\n"
-for tipo, detalles in detalles_combinados.items():
-    detalles_combinados_latex += f"\n% {tipo}\n"  # Agregar un encabezado para cada tipo
-    for detalle in detalles:
-        detalles_combinados_latex += f"{detalle}\n"
-
-detalles_combinados_criticos_latex = "\n\n% Detalles de los cálculo críticos\n"
-for detalle in detalles_tareas_criticos:
-    detalles_combinados_criticos_latex += f"{detalle}\n"
-    
-
-# Especificar el archivo LaTeX de salida
-archivo_latex_completo = "output/output_pert.txt"
-
-# Escribir ambas tablas en el mismo archivo
-with open(archivo_latex_completo, "w") as f:
-    f.write("% Datos procesados\n")
-    f.write(tabla_datos_procesado)
-    f.write("% Tabla Completa\n")
-    f.write(tabla_completa_latex)  # Escribir la tabla completa
-    f.write(detalles_combinados_latex)  # Agregar los detalles combinados
-    f.write("\n\n% Tabla Tareas\n")  # Separador entre las tablas
-    f.write(tabla_tareas_latex)  # Escribir la tabla de tareas
-    f.write(detalles_combinados_criticos_latex)
-    f.write("\nCamino crítico: ")
-    f.write(camino_critico_lista)
-    f.write("\n")
-    f.write(calculo_duracion_camino_critico_latex)
-    
- 
+for item in nombres_archivos_con_carpeta:
+    generate_global(item, latex)
