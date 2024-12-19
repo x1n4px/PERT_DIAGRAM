@@ -83,136 +83,123 @@ def leer_matriz_dependencias(archivo_excel):
 
     return relaciones, variables
 
-'''
-def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
-    """
-    Genera un grafo PERT a partir de las relaciones de precedencia usando Graphviz.
 
-    :param relaciones: Lista de relaciones de precedencia como tuplas (origen, destino).
-    :param variables: Lista de nombres de las variables.
-    :param archivo_salida: Nombre del archivo de salida sin extensión.
-    :return: Lista de las relaciones creadas en el formato [(origen, destino, label, estilo)].
+def create_pert_list(relaciones, variables, archivo_salida="graph"):
     """
+    Crea una lista PERT a partir de una relación de precedencia.
+
+    Args:
+        relations: Lista de tuplas (origen, destino) representando las relaciones.
+
+    Returns:
+        Lista de tuplas (origen, destino, tarea, estilo) representando los nodos.
+    """
+    dot = Digraph(comment="Grafo PERT")
+    # Configurar el grafo
+    dot.body.extend([
+        "rankdir=LR;",  # Dirección de izquierda a derecha
+        "node [shape=circle];",  # Los nodos tienen forma circular
+        "edge [splines=line];",  # Las aristas son líneas
+    ])
+
+    letras_en_tuplas = set(elemento for tupla in relaciones for elemento in tupla)
+    letras_faltantes = set(variables) - letras_en_tuplas
+
+    #print("Letras: ", letras_faltantes)
+     # Crear un conjunto con todos los nodos destino
+    destinos = {destino for _, destino in relaciones}
+
+    preceding = set()
+    non_preceding = set()
+
+    for origin, destination in relaciones:
+        preceding.add(destination)
+        non_preceding.add(origin)
     
+    nodos_iniciales = sorted(list(set([origen for origen, _ in relaciones if origen not in destinos])))
+    nodos_finales = sorted(list(set(preceding - non_preceding)))
+    #print(nodos_iniciales)
+    #print(nodos_finales)
+    
+    i = 2
+    resultado = []
+    
+    for x in nodos_iniciales:
+        resultado.append((1, i, x, 'solid'))
+        i += 1
+        
+    repetidos_y = []
+    vistos_y = set()
+
+    for x, y in relaciones:
+        if y in vistos_y:
+            repetidos_y.append((x, y))
+        vistos_y.add(y)
+        
+    # Convertimos 'aux' en un conjunto para búsquedas más eficientes
+    conjunto_aux = set(repetidos_y)
+
+    # Creamos una nueva lista para almacenar los elementos a conservar
+    nueva_relaciones = []
+
+    for tupla in relaciones:
+        if tupla not in conjunto_aux:
+            nueva_relaciones.append(tupla)
+    relaciones = nueva_relaciones
+
    
     
-    # Crear un objeto Digraph
-    dot = Digraph(comment="Grafo PERT")
-
-    # Configurar el grafo
-    dot.body.extend(
-        [
-            "rankdir=LR;",  # Dirección de izquierda a derecha
-            "node [shape=circle];",  # Los nodos tienen forma circular
-            "edge [splines=line];",  # Las aristas son líneas
-        ]
-    )
-
-    # Lista para registrar las relaciones creadas
-    relaciones_creadas = []
-
-    # Diccionario para llevar un control de las flechas hacia cada nodo
-    precedencias = {var: [] for var in variables}
-    # Mapeo de variables a números
-    var_to_num = {var: idx + 1 for idx, var in enumerate(variables)}
-
-    # Contador para las flechas dashed
-    dashed_counter = {var: 1 for var in variables}
-
-    # Crear un diccionario para verificar si un nodo está precedido por otro
-    nodos_entrantes = {var: False for var in variables}
     
     
-    for origen, destino in relaciones:
-        nodos_entrantes[destino] = True
-
-    # Nodo 1 será el primer nodo sin flechas entrantes o el primero de la lista
-    nodos_sin_precedencia = [
-        var for var, tiene_entrantes in nodos_entrantes.items() if not tiene_entrantes
-    ]
-    nodo_inicio = nodos_sin_precedencia[0] if nodos_sin_precedencia else variables[0]
-    
-    # Crear nodo de inicio (nodo "1")
-    dot.node(str(var_to_num[nodo_inicio]), label=str(var_to_num[nodo_inicio]))
-    # Conectar los nodos sin precedencia al nodo "1"
-    for var in nodos_sin_precedencia:
-        if var != nodo_inicio:  # Evitar que el nodo inicial se conecte a sí mismo
-            dot.edge(str(var_to_num[nodo_inicio]), str(var_to_num[var]), label=var)
-            relaciones_creadas.append((var_to_num[nodo_inicio], var_to_num[var], var, "solid"))  # Registrar
-    
-    # Agregar las relaciones entre nodos
-    for origen, destino in relaciones:
-        # Convertir los nombres de las variables a números
-        origen_num = var_to_num[origen]
-        destino_num = var_to_num[destino]
-        # Determinar si la flecha debe ser dashed
-        style = "dashed" if len(precedencias[destino]) > 0 else "solid"
-
-        # Asignar un nombre especial para las flechas dashed
-        if style == "dashed":
-            label = f"F{dashed_counter[destino]}"
-            dashed_counter[destino] += 1
-        else:
-            for X,Y,B,C in relaciones_creadas:
-                if B == origen :
-                    label = destino
-                    break
-                else:
-                    label = origen
+    for X,Y in relaciones:
+        for orig, dest, nam, sol in resultado[:]:
+            if(nam == X):
+                resultado.append((dest, i, Y, 'solid'))
+                i += 1
+   
         
-        # Agregar la arista con el label apropiado
-        dot.edge(str(origen_num), str(destino_num), label=label, style=style)
-        relaciones_creadas.append((origen_num, destino_num, label, style))  # Registrar la relación creada
-
-        # Registrar la relación en el diccionario de precedencias
-        precedencias[destino].append(origen)
-
-
-    # Filtrar nodos que no preceden a otros (es decir, sin flechas salientes)
-    nodos_salientes = {var: False for var in variables}
-
-    for origen, destino in relaciones:
-        nodos_salientes[origen] = True
-
-    # Filtrar solo los nodos que tienen flechas salientes
-    nodos_con_salientes = [
-        var for var, tiene_salientes in nodos_salientes.items() if tiene_salientes
-    ]
-
-    # Eliminar los nodos sin salientes
-    for var in nodos_con_salientes:
-        dot.node(str(var_to_num[var]), label=str(var_to_num[var]))
-
-    # Detectar el nodo final (último nodo sin salida)
-    nodos_finales = [
-        var for var, tiene_salientes in nodos_salientes.items() if not tiene_salientes
-    ]
-  
-    # Crear el nodo final con el número siguiente al último nodo
-    if nodos_finales:
-        ultimo_numero = max(var_to_num.values())  # Número más alto existente
-        nodo_final_num = ultimo_numero + 1  # Nodo final será el siguiente número
-        dot.node(str(nodo_final_num), label=str(nodo_final_num))  # Crear nodo final
-
-        # Conectar las variables finales al nuevo nodo final sin bucles
-        for var in nodos_finales:
-            dot.edge(
-                str(var_to_num[var]), str(nodo_final_num), label=var
-            )  # Conectar sin bucles
-            relaciones_creadas.append((var_to_num[var], nodo_final_num, var, "solid"))  # Registrar
-
-    # Renderizar el grafo
-    dot.render(archivo_salida, format="png", cleanup=True)
-
-    # Devolver la lista de relaciones creadas
-    return relaciones_creadas
-
-
-'''
-
-
-
     
+    for X,Y in repetidos_y:
+        dest_X = 0
+        orig_Y = 0
+        for orig, dest, nam, sol in resultado[:]:
+            if(nam == X):
+                dest_X = dest
+            elif nam == Y :
+                orig_Y = orig
+        resultado.append((dest_X, orig_Y, 'F1', 'dashed'))
+        
+    # nodos sin relaciones
+    for a in letras_faltantes:
+        resultado.append((1, i, a, 'solid'))
+        nodos_finales.append(a)
+    
+    
+    resultado_filtrado = [tupla for tupla in resultado if tupla[2] in nodos_finales]
+    #print(resultado_filtrado)
+
+    # todos los ndos finales, apunten al mismo
+    #print(nodos_finales)
+    nodo_final = i
+    for X,Y,M,S in resultado[:]:
+        if(M in nodos_finales):
+            if(Y < nodo_final):
+                nodo_final = Y
+        
+    #print("Valor ndo final: ", nodo_final)
+    for i, nodo in enumerate(resultado):
+        if nodo[2] in nodos_finales:
+            #print(nodo[2])
+            resultado[i] = (nodo[0], nodo_final, nodo[2], nodo[3])
+            #print(resultado[i])
+            
+    
+    for origen, destino, actividad, sol in resultado:
+        dot.edge(str(origen), str(destino), label=actividad, style=sol)
+        
+    dot.render(archivo_salida, format="png", cleanup=True)
+    return resultado
+
 
 ######################## CALCULO TABLAS #########################
 
@@ -295,7 +282,6 @@ def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue
     Ei = {i+1: valor for i, valor in enumerate(valores_finales_previos)}
     return Ei, calculos_txt_final
 
-   
 
 def calcular_early_times(relaciones, duraciones, valores_variables):
     """
@@ -521,11 +507,9 @@ def generate_global(archivo_excel, archivo_latex):
 
     # Filtrar la lista A para mantener solo los elementos que están en el conjunto
     variables_filtradas = [elemento for elemento in variables if elemento in elementos_en_B]
+    
     # Generar el grafo PERT
-    #relations = generar_grafo_pert(relaciones_precedencia, variables_filtradas, archivo_salida=f"{dir_name}/pert_grafo")
-
-    relations = individual_Codes.grp.create_pert_list(relaciones_precedencia, variables_filtradas, archivo_salida=f"{dir_name}/pert_grafo")
-
+    relations = create_pert_list(relaciones_precedencia, variables_filtradas, archivo_salida=f"{dir_name}/pert_grafo")
     
     # Paso 1: Encontrar vértices iniciales
     destinos = {b for _, b in relaciones_precedencia}
@@ -655,7 +639,7 @@ def generate_global(archivo_excel, archivo_latex):
 
 
 ####################### LLAMADA A FUNCIONES #####################
-excel = ["input/ej3.xlsx"]
+excel = ["input/ej3.xlsx", "input/ej4.xlsx", "input/ej5.xlsx"]
 latex = "output/tabla.tex"  
 
  
