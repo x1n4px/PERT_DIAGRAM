@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 from datetime import datetime
-
+import individual_Codes.grp
 
 
 def leer_y_procesar_excel(archivo_excel):
@@ -83,7 +83,7 @@ def leer_matriz_dependencias(archivo_excel):
 
     return relaciones, variables
 
-
+'''
 def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     """
     Genera un grafo PERT a partir de las relaciones de precedencia usando Graphviz.
@@ -94,6 +94,8 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     :return: Lista de las relaciones creadas en el formato [(origen, destino, label, estilo)].
     """
     
+    print(relaciones)
+    print(variables)
     
     # Crear un objeto Digraph
     dot = Digraph(comment="Grafo PERT")
@@ -208,7 +210,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     return relaciones_creadas
 
 
-
+'''
 
 
 
@@ -248,13 +250,16 @@ def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue
     valores_finales_previos = [0]*len(nodos)
     valores_finales_previos[-1] = maxEarlyValue
     valores_finales_previos
-
+    
+    print(len(nodos))
+    calculos_texto.append(f"L{len(nodos)} = {maxEarlyValue}")
     agrupados.reverse()
 
     # Iterar sobre cada valor de la lista Valores
     for i, relaciones in agrupados:
         if len(relaciones) == 1:
             (X1, Y1, variable1, _) = relaciones[0]
+            #print("Valor simple: ", X1)
             M1 = valores_variables_dic.get(variable1, 0)
             VX1 = valores_finales_previos[Y1-1]
             #print(f"Para el indice {Y1-1} da el valor: {VX1}")
@@ -265,6 +270,7 @@ def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue
         else:
             (X1, Y1, variable1, _) = relaciones[0]
             (X2, Y2, variable2, _) = relaciones[1]
+            #print("Valor compuesto: ", X1)
             M1 = valores_variables_dic.get(variable1, 0)
             M2 = valores_variables_dic.get(variable2, 0)
             VA = valores_finales_previos[Y1-1]
@@ -324,11 +330,13 @@ def calcular_early_times(relaciones, duraciones, valores_variables):
     valores_finales.insert(0,0)
 
 
-   
+    calculos_texto.append(f"E1 = 0")
 
-    # Iterar sobre cada valor de la lista Valores
+    print(agrupados)
+     # Iterar sobre cada valor de la lista Valores
     for i, relaciones in agrupados:
         if len(relaciones) == 1:
+            # Nodo simple
             (X1, Y1, variable1, _) = relaciones[0]
             M1 = valores_variables_dic.get(variable1, 0)
             VX1 = valores_finales_previos[X1-1]
@@ -336,6 +344,7 @@ def calcular_early_times(relaciones, duraciones, valores_variables):
             valores_finales_previos[Y1-1] = resultado;
             calculo = f"E{Y1} = E{X1} + {variable1} = {VX1} + {M1} = {VX1+M1}"
         else:
+            # Nodo compuesto
             (X1, Y1, variable1, _) = relaciones[0]
             (X2, Y2, variable2, _) = relaciones[1]
             M1 = valores_variables_dic.get(variable1, 0)
@@ -344,7 +353,8 @@ def calcular_early_times(relaciones, duraciones, valores_variables):
             VB = valores_finales_previos[X2-1]
             resultado = max(VA + M1, VB + M2)
             valores_finales_previos[Y1-1] = resultado;
-            calculo = f"E{Y1} = MAX(E{X1} + {variable1}, E{X2}+{variable2} = MAX({VA} + {M1},{VB}+{M2}) = {max(VA+M1,VB+M2)}"
+            calculo = f"E{Y1} = MAX(E{X1} + {variable1}, E{X2}+{variable2}) = MAX({VA} + {M1},{VB}+{M2}) = {max(VA+M1,VB+M2)}"
+        
         calculos_texto.append(calculo)
         valores_finales.append(resultado)
     
@@ -483,7 +493,7 @@ def generate_global(archivo_excel, archivo_latex):
     
     # Obtener solo el nombre del archivo sin la extensión
     var_name = os.path.splitext(file_name_with_ext)[0]
-    dir_name = f"output/{var_name}_{datetime.now()}"
+    dir_name = f"output/{var_name}"
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
 
@@ -502,11 +512,11 @@ def generate_global(archivo_excel, archivo_latex):
     # Filtrar la lista A para mantener solo los elementos que están en el conjunto
     variables_filtradas = [elemento for elemento in variables if elemento in elementos_en_B]
     # Generar el grafo PERT
-    relations = generar_grafo_pert(
-        relaciones_precedencia, variables_filtradas, archivo_salida=f"{dir_name}/pert_grafo"
-    )
+    #relations = generar_grafo_pert(relaciones_precedencia, variables_filtradas, archivo_salida=f"{dir_name}/pert_grafo")
 
+    relations = individual_Codes.grp.create_pert_list(relaciones_precedencia, variables_filtradas, archivo_salida=f"{dir_name}/pert_grafo")
 
+    
     # Paso 1: Encontrar vértices iniciales
     destinos = {b for _, b in relaciones_precedencia}
     origenes = {a for a, _ in relaciones_precedencia}
@@ -530,7 +540,7 @@ def generate_global(archivo_excel, archivo_latex):
 
     nodos = sorted(list(nodos))
 
-
+    
     # Duraciones de las actividades (t0, tm, tp calculado previamente como De)
     # Crear el diccionario 'duraciones' con las claves de la columna 'Variable' y los valores de la columna 'De'
     duraciones = {}
@@ -541,7 +551,7 @@ def generate_global(archivo_excel, archivo_latex):
         row["Variable"]: round(row["De"], 2) for _, row in datos_procesados.iterrows()
     }
 
-
+    print(duraciones)
     # Agregar 'F1': 0 al diccionario
     duraciones["F1"] = 0
 
@@ -636,10 +646,9 @@ def generate_global(archivo_excel, archivo_latex):
 
 
 ####################### LLAMADA A FUNCIONES #####################
-#excel = ["input/ej3.xlsx", "input/ej4.xlsx", "input/ej5.xlsx"]
+excel = ["input/ej3.xlsx"]
 latex = "output/tabla.tex"  
 
-nombres_archivos_con_carpeta = [os.path.join("input", archivo) for archivo in (os.listdir("input")) if os.path.isfile(os.path.join("input", archivo))]
  
-for item in nombres_archivos_con_carpeta:
+for item in excel:
     generate_global(item, latex)
