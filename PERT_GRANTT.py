@@ -94,8 +94,7 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
     :return: Lista de las relaciones creadas en el formato [(origen, destino, label, estilo)].
     """
     
-    print(relaciones)
-    print(variables)
+   
     
     # Crear un objeto Digraph
     dot = Digraph(comment="Grafo PERT")
@@ -162,7 +161,6 @@ def generar_grafo_pert(relaciones, variables, archivo_salida="graph"):
                     label = origen
         
         # Agregar la arista con el label apropiado
-        #print(f"Origen {origen_num} -> destino {destino_num} :: label {label}")
         dot.edge(str(origen_num), str(destino_num), label=label, style=style)
         relaciones_creadas.append((origen_num, destino_num, label, style))  # Registrar la relación creada
 
@@ -251,34 +249,37 @@ def calcular_late_times(relaciones, duraciones, valores_variables, maxEarlyValue
     valores_finales_previos[-1] = maxEarlyValue
     valores_finales_previos
     
-    print(len(nodos))
     calculos_texto.append(f"L{len(nodos)} = {maxEarlyValue}")
     agrupados.reverse()
+    
+    for i, relaciones in agrupados:
+        if len(relaciones) == 1:
+            (X1, Y1, variable1, _) = relaciones[0]
+            M1 = valores_variables_dic.get(variable1, 0)
+            VX1 = valores_finales_previos[Y1-1]
+            resultado = VX1 - M1
+            valores_finales_previos[X1-1] = resultado;
+            calculo = f"L{X1} = L{Y1} - {variable1} = {VX1} - {M1} = {VX1-M1}"
 
     # Iterar sobre cada valor de la lista Valores
     for i, relaciones in agrupados:
         if len(relaciones) == 1:
             (X1, Y1, variable1, _) = relaciones[0]
-            #print("Valor simple: ", X1)
             M1 = valores_variables_dic.get(variable1, 0)
             VX1 = valores_finales_previos[Y1-1]
-            #print(f"Para el indice {Y1-1} da el valor: {VX1}")
             resultado = VX1 - M1
             valores_finales_previos[X1-1] = resultado;
             calculo = f"L{X1} = L{Y1} - {variable1} = {VX1} - {M1} = {VX1-M1}"
-            #print(calculo, "-->", valores_finales_previos)
         else:
             (X1, Y1, variable1, _) = relaciones[0]
             (X2, Y2, variable2, _) = relaciones[1]
-            #print("Valor compuesto: ", X1)
             M1 = valores_variables_dic.get(variable1, 0)
             M2 = valores_variables_dic.get(variable2, 0)
             VA = valores_finales_previos[Y1-1]
             VB = valores_finales_previos[Y2-1]
             resultado = min(VA - M1, VB - M2)
             valores_finales_previos[X1-1] = resultado;
-            calculo = f"L{X1} = MIN(L{Y1} - {variable1}, L{Y2}-{variable2} = MIN({VA} - {M1},{VB}-{M2}) = {min(VA-M1,VB-M2)}  "
-            #print(calculo, "-->", valores_finales_previos)
+            calculo = f"L{X1} = MIN(L{Y1} - {variable1}, L{Y2}-{variable2}) = MIN({VA} - {M1},{VB}-{M2}) = {min(VA-M1,VB-M2)}  "
 
         calculos_texto.append(calculo)
         
@@ -332,7 +333,18 @@ def calcular_early_times(relaciones, duraciones, valores_variables):
 
     calculos_texto.append(f"E1 = 0")
 
-    print(agrupados)
+    
+    
+    for i, relaciones in agrupados:
+        if len(relaciones) == 1:
+            # Nodo simple
+            (X1, Y1, variable1, _) = relaciones[0]
+            M1 = valores_variables_dic.get(variable1, 0)
+            VX1 = valores_finales_previos[X1-1]
+            resultado = VX1 + M1
+            valores_finales_previos[Y1-1] = resultado;
+            calculo = f"E{Y1} = E{X1} + {variable1} = {VX1} + {M1} = {VX1+M1}"
+ 
      # Iterar sobre cada valor de la lista Valores
     for i, relaciones in agrupados:
         if len(relaciones) == 1:
@@ -407,7 +419,6 @@ def generar_tabla_tareas_con_detalles(nodos, relaciones, duraciones, Ei, Li):
                 # Verificar si la tarea es crítica
                 critico = "Sí" if Hij == 0 else "No"
                 
-                #print(f"Tarea {M} Ruta {X} -> {Y} di {Di} Ei {Ei_val} Lj {Lj_val} Hij {Hij} critico={critico}")
                 # Añadir la fila correspondiente a la tabla
                 tareas_info.append(
                     [
@@ -498,7 +509,6 @@ def generate_global(archivo_excel, archivo_latex):
         os.makedirs(dir_name)
 
     datos_procesados = leer_y_procesar_excel(archivo_excel)
-
     # Supongamos que 'datos' es el DataFrame que devuelve la función
     columna_de = datos_procesados["De"]
 
@@ -551,7 +561,6 @@ def generate_global(archivo_excel, archivo_latex):
         row["Variable"]: round(row["De"], 2) for _, row in datos_procesados.iterrows()
     }
 
-    print(duraciones)
     # Agregar 'F1': 0 al diccionario
     duraciones["F1"] = 0
 
