@@ -434,7 +434,9 @@ def generar_tabla_tareas_con_detalles(nodos, relaciones, duraciones, Ei, Li):
 ######################## GANTT #############################
 
 
-def create_gantt_chart(tabla_tareas, dir_name,  output_file="gantt_chart.png"):
+
+
+def create_gantt_chart(tabla_tareas, dir_name, camino_critico, output_file="gantt_chart.png"):
     """
     Procesa una tabla de tareas y genera un gráfico de Gantt y lo guarda como un archivo PNG.
 
@@ -442,7 +444,9 @@ def create_gantt_chart(tabla_tareas, dir_name,  output_file="gantt_chart.png"):
                          - 'Tarea': nombre de la tarea
                          - 'Ruta(i->j)': cadena con formato 'start -> end'
                          - 'Di': fracción completada de la tarea (como número)
-    :param output_file: Nombre del archivo de salida (con extensión .png)
+    :param dir_name: Nombre del directorio donde guardar el gráfico.
+    :param camino_critico: Lista con las tareas que pertenecen al camino crítico.
+    :param output_file: Nombre del archivo de salida (con extensión .png).
     """
     # Crear el DataFrame con las columnas necesarias
     df = pd.DataFrame(
@@ -468,15 +472,27 @@ def create_gantt_chart(tabla_tareas, dir_name,  output_file="gantt_chart.png"):
     )  # Duración en días incluyendo el final
     df["completion_days"] = df["completion_frac"] * df["task_duration"]
 
+    # Crear una lista de colores, con rojo para tareas del camino crítico
+    colors = [
+        "red" if task in camino_critico else "blue" for task in df["task"]
+    ]
+
     # Generar gráfico de Gantt
-    plt.barh(y=df["task"], width=df["task_duration"], left=df["days_to_start"])
+    plt.barh(
+        y=df["task"],
+        width=df["task_duration"],
+        left=df["days_to_start"],
+        color=colors,
+        edgecolor="black"  # Opcional: bordes negros para distinguir barras
+    )
     plt.xlabel("Días")
     plt.ylabel("Tareas")
     plt.title("Gráfico de Gantt")
 
     # Guardar el gráfico como archivo PNG
-    plt.savefig(f"./{dir_name}/output_gantt.png", format="png", bbox_inches="tight")
+    plt.savefig(f"./{dir_name}/{output_file}", format="png", bbox_inches="tight")
     plt.close()  # Cerrar la figura para liberar memoria
+
 
 
 
@@ -576,12 +592,11 @@ def generate_global(archivo_excel, archivo_latex):
     # Generar la tabla de tareas
     tabla_tareas, detalles_tareas_criticos = generar_tabla_tareas_con_detalles(nodos, relations, columna_de, tabla_early, tabla_late)
 
-    create_gantt_chart(tabla_tareas, dir_name)
 
 
     # Filtrar las tareas críticas
     tareas_criticas = tabla_tareas[tabla_tareas["Critico"] == "Sí"]
-
+    
     # Mostrar el camino crítico
     camino_critico = tareas_criticas[["Tarea", "Ruta(i->j)", "Di"]]
     camino_critico_lista = '-'.join(camino_critico['Tarea'])
@@ -603,6 +618,7 @@ def generate_global(archivo_excel, archivo_latex):
 
     tabla_datos_procesado = datos_procesados.to_latex(index=False, float_format="%.3f")
 
+    create_gantt_chart(tabla_tareas, dir_name, camino_critico['Tarea'].tolist())
 
 
     detalles_combinados_latex = "\n\n% Detalles de los cálculos\n"
@@ -634,6 +650,9 @@ def generate_global(archivo_excel, archivo_latex):
         f.write("\n")
         f.write(calculo_duracion_camino_critico_latex)
         
+    
+
+        
 
 
 ####################### LLAMADA A FUNCIONES #####################
@@ -643,3 +662,5 @@ latex = "output/tabla.tex"
  
 for item in excel:
     generate_global(item, latex)
+    
+print("¡Todos los cálculos se han completado con éxito!")
